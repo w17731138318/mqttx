@@ -18,10 +18,13 @@ package com.jun.mqttx.config;
 
 import com.jun.mqttx.consumer.DefaultInternalMessageSubscriber;
 import com.jun.mqttx.consumer.KafkaInternalMessageSubscriber;
+import com.jun.mqttx.consumer.RocketInternalMessageSubscriber;
 import com.jun.mqttx.consumer.Watcher;
 import com.jun.mqttx.service.IInternalMessagePublishService;
 import com.jun.mqttx.service.impl.DefaultInternalMessagePublishServiceImpl;
 import com.jun.mqttx.service.impl.KafkaInternalMessagePublishServiceImpl;
+import com.jun.mqttx.service.impl.RocketInternalMessagePublishServiceImpl;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -46,6 +49,7 @@ import static com.jun.mqttx.constants.InternalMessageEnum.*;
  * <ul>
  *     <li>redis</li>
  *     <li>kafka</li>
+ *     <li>rocket</li>
  * </ul>
  * 默认采用 redis 实现
  *
@@ -58,6 +62,7 @@ public class ClusterConfig {
 
     public static final String REDIS = "redis";
     public static final String KAFKA = "kafka";
+    public static final String ROCKET = "rocket";
 
     @Bean
     @ConditionalOnProperty(name = "mqttx.cluster.type", havingValue = REDIS, matchIfMissing = true)
@@ -72,6 +77,12 @@ public class ClusterConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "mqttx.cluster.type", havingValue = ROCKET)
+    public RocketInternalMessageSubscriber rocketInternalMessageSubscriber(List<Watcher> watchers, MqttxConfig mqttxConfig) {
+        return new RocketInternalMessageSubscriber(watchers, mqttxConfig);
+    }
+
+    @Bean
     @ConditionalOnProperty(name = "mqttx.cluster.type", havingValue = REDIS, matchIfMissing = true)
     public IInternalMessagePublishService defaultInternalMessagePublishServiceImpl(StringRedisTemplate stringRedisTemplate) {
         return new DefaultInternalMessagePublishServiceImpl(stringRedisTemplate);
@@ -82,6 +93,13 @@ public class ClusterConfig {
     @ConditionalOnProperty(name = "mqttx.cluster.type", havingValue = KAFKA)
     public IInternalMessagePublishService kafkaInternalMessagePublishServiceImpl(KafkaTemplate<String, byte[]> kafkaTemplate) {
         return new KafkaInternalMessagePublishServiceImpl(kafkaTemplate);
+    }
+
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+    @Bean
+    @ConditionalOnProperty(name = "mqttx.cluster.type", havingValue = ROCKET)
+    public IInternalMessagePublishService rocketInternalMessagePublishServiceImpl(RocketMQTemplate rocketTemplate) {
+        return new RocketInternalMessagePublishServiceImpl(rocketTemplate);
     }
 
     /**

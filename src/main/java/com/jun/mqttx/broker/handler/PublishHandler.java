@@ -19,6 +19,7 @@ package com.jun.mqttx.broker.handler;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
 import com.jun.mqttx.broker.BrokerHandler;
+import com.jun.mqttx.config.ClusterConfig;
 import com.jun.mqttx.config.MqttxConfig;
 import com.jun.mqttx.constants.InternalMessageEnum;
 import com.jun.mqttx.constants.ShareStrategy;
@@ -35,6 +36,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.mqtt.*;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.lang.Nullable;
@@ -42,6 +45,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import javax.annotation.Resource;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -72,12 +76,18 @@ public class PublishHandler extends AbstractMqttTopicSecureHandler implements Wa
     private final ShareStrategy shareStrategy;
     /** 消息桥接开关 */
     private final Boolean enableMessageBridge;
+    /**
+     * 桥接MQ类型
+     */
+    private final String bridgeMqType;
     private IInternalMessagePublishService internalMessagePublishService;
     /** 需要桥接消息的主题 */
     private Set<String> bridgeTopics;
     private KafkaTemplate<String, byte[]> kafkaTemplate;
+    private RocketMQTemplate rocketMQTemplate;
     /** 共享订阅轮询，存储轮询参数 */
     private Map<String, AtomicInteger> roundMap;
+
 
     //@formatter:on
 
@@ -85,7 +95,7 @@ public class PublishHandler extends AbstractMqttTopicSecureHandler implements Wa
     public PublishHandler(IPublishMessageService publishMessageService, IRetainMessageService retainMessageService,
                           ISubscriptionService subscriptionService, IPubRelMessageService pubRelMessageService, ISessionService sessionService,
                           @Nullable IInternalMessagePublishService internalMessagePublishService, MqttxConfig config,
-                          @Nullable KafkaTemplate<String, byte[]> kafkaTemplate, StringRedisTemplate stringRedisTemplate) {
+                          @Nullable KafkaTemplate<String, byte[]> kafkaTemplate,  RocketMQTemplate rocketMQTemplate, StringRedisTemplate stringRedisTemplate) {
         super(config.getEnableTestMode(), config.getCluster().getEnable());
         Assert.notNull(publishMessageService, "publishMessageService can't be null");
         Assert.notNull(retainMessageService, "retainMessageService can't be null");
@@ -109,10 +119,11 @@ public class PublishHandler extends AbstractMqttTopicSecureHandler implements Wa
             roundMap = new ConcurrentHashMap<>();
         }
         this.enableMessageBridge = messageBridge.getEnable();
+        this.bridgeMqType = messageBridge.getMqType();
         if (enableMessageBridge) {
             this.bridgeTopics = messageBridge.getTopics();
+            this.rocketMQTemplate = rocketMQTemplate;
             this.kafkaTemplate = kafkaTemplate;
-
             Assert.notEmpty(bridgeTopics, "消息桥接主题列表不能为空!!!");
         }
 
@@ -143,7 +154,7 @@ public class PublishHandler extends AbstractMqttTopicSecureHandler implements Wa
         boolean retain = mqttFixedHeader.isRetain();
         byte[] data = new byte[payload.readableBytes()];
         payload.readBytes(data);
-
+        System.out.println(new String(data));
         // 发布权限判定
         if (enableTopicSubPubSecure && !hasAuthToPubTopic(ctx, topic)) {
             throw new AuthorizationException("无对应 topic 发布权限");
@@ -152,7 +163,12 @@ public class PublishHandler extends AbstractMqttTopicSecureHandler implements Wa
         // 消息桥接功能，便于对接各类 MQ(kafka, RocketMQ).
         // 这里提供 kafka 的实现，需要对接其它 MQ 的同学可自行修改.
         if (enableMessageBridge && bridgeTopics.contains(topic)) {
-            kafkaTemplate.send(topic, data);
+            if (bridgeMqType.toLowerCase().equals(ClusterConfig.KAFKA)){
+                kafkaTemplate.send(topic, JSON.toJSONBytes(data));
+            }
+            if (bridgeMqType.toLowerCase().equals(ClusterConfig.ROCKET)){
+                rocketMQTemplate.convertAndSend(topic, data);
+            }
         }
 
         // 组装消息

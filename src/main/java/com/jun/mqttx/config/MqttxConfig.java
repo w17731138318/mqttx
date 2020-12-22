@@ -247,7 +247,10 @@ public class MqttxConfig {
      */
     @Data
     public static class MessageBridge{
-
+        /**
+         * 桥接MQ类型
+         */
+        private String mqType;
         /** 开关 */
         private Boolean enable = false;
 

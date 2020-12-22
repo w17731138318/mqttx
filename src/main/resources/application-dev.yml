@@ -2,15 +2,26 @@
 
 spring:
   redis:
-    host: localhost
-
+    host: 10.0.0.121
+    port: 6379
+    database: 1
+rocketmq:
+  name-server: 10.0.0.131:9876
+  producer:
+    group: test_producer
 mqttx:
   web-socket:
     enable: true
-
+  message-bridge:
+    mq-type: "rocket"
+    topics:
+      - "TopicTest"
+    enable: true
 logging:
   pattern:
     console: "%clr(%d{${LOG_DATEFORMAT_PATTERN:yyyy-MM-dd HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger){cyan} %clr([%4.4L]){cyan} %clr(:){faint} %m%n"
+
+
 
 #mqttx 配置项说明见 readme.md #6.1 配置项
 #下方是配置示例，供参考
@@ -42,9 +53,10 @@ logging:
 #mqttx:
 #  message-bridge:
 #    bridge-topics:
-#      - "/bridge/topic"
-#      - "mqttx/love"
-#    enable: true
+#      mq-type: "rocket"
+#      topics:
+#        - "TopicTest"
+#      enable: true
 
 # 3. kafka 集群
 #spring:

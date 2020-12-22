@@ -7,7 +7,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 
 /**
  * 基于 kafka 实现
- *
+ * @author wwx
  * @see DefaultInternalMessagePublishServiceImpl
  * @since v1.0.6
  */

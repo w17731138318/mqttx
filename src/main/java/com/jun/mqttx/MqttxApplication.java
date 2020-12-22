@@ -20,6 +20,7 @@ import com.jun.mqttx.broker.BrokerInitializer;
 import com.jun.mqttx.config.MqttxConfig;
 import com.jun.mqttx.exception.GlobalException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
@@ -51,7 +52,7 @@ public class MqttxApplication {
 
         // 启动mqtt
         ctx.getBean(BrokerInitializer.class).start();
-    }
+	}
 
     /**
      * 服务启动前一些状态检查，包括：
